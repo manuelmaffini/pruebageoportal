@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geoportal Territorial | Sistema de Información Geográfica</title>
+    
+    <!-- Tipografía moderna -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Iconos Phosphor -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- Leaflet & Supabase & Wicket -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/wicket@1.3.8/wicket.js"></script>
+
+    <!-- Estilos propios -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <div class="app-layout">
+        <!-- Barra Lateral (Sidebar) -->
+        <aside class="sidebar" id="sidebar">
+            <header class="sidebar-header">
+                <div class="brand">
+                    <div class="brand-icon">
+                        <i class="ph-fill ph-globe-hemisphere-west"></i>
+                    </div>
+                    <div>
+                        <h1>Geoportal SIG</h1>
+                        <span>Infraestructura y Servicios</span>
+                    </div>
+                </div>
+                <button id="btnToggleSidebar" class="btn-icon mobile-only" title="Cerrar panel">
+                    <i class="ph ph-x"></i>
+                </button>
+            </header>
+
+            <!-- Barra de Estado -->
+            <div class="status-banner" id="statusBanner">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="estado">Iniciando conexión espacial...</span>
+            </div>
+
+            <!-- Navegación por Pestañas -->
+            <nav class="tabs-nav">
+                <button class="tab-btn active" data-tab="tab-explorar">
+                    <i class="ph ph-magnifying-glass"></i> Explorar
+                </button>
+                <button class="tab-btn" data-tab="tab-capas">
+                    <i class="ph ph-stack"></i> Capas
+                </button>
+                <button class="tab-btn" data-tab="tab-reportes">
+                    <i class="ph ph-warning-circle"></i> Reportar
+                </button>
+            </nav>
+
+            <!-- Contenido de Pestañas -->
+            <div class="sidebar-content">
+                
+                <!-- PESTAÑA 1: EXPLORAR Y ANÁLISIS DE BARRIO -->
+                <section id="tab-explorar" class="tab-panel active">
+                    <div class="card">
+                        <label class="section-label" for="inputBarrio">Buscador de Barrios</label>
+                        <div class="search-wrapper">
+                            <i class="ph ph-magnifying-glass search-icon"></i>
+                            <input type="text" id="inputBarrio" placeholder="Escribe el nombre del barrio..." autocomplete="off">
+                            <button type="button" id="btnLimpiarBusqueda" class="clear-btn" title="Limpiar" style="display:none;">
+                                <i class="ph ph-x-circle"></i>
+                            </button>
+                            <div id="listaResultados" class="dropdown-results"></div>
+                        </div>
+                        <p class="helper-text">Selecciona un barrio para calcular cobertura de alcantarillado y servicios cercanos.</p>
+                    </div>
+
+                    <!-- Resultados del análisis espacial (PostGIS RPC) -->
+                    <div id="infoBarrio" class="card analysis-card" style="display: none;">
+                        <div class="analysis-header">
+                            <span class="badge-blue">Análisis Espacial</span>
+                            <h2 id="resNombreBarrio">--</h2>
+                        </div>
+                        
+                        <div class="metric-box">
+                            <div class="metric-icon"><i class="ph ph-pipe"></i></div>
+                            <div>
+                                <span class="metric-label">Red de Alcantarillado</span>
+                                <strong class="metric-value" id="resAlcantarillado">0 m</strong>
+                            </div>
+                        </div>
+
+                        <div class="services-grid">
+                            <div class="service-pill" id="pillBomberos">
+                                <i class="ph-fill ph-fire-extinguisher"></i>
+                                <span>Bomberos</span>
+                                <small id="txtBomberos">--</small>
+                            </div>
+                            <div class="service-pill" id="pillPolicia">
+                                <i class="ph-fill ph-shield-check"></i>
+                                <span>Policía</span>
+                                <small id="txtPolicia">--</small>
+                            </div>
+                            <div class="service-pill" id="pillSalud">
+                                <i class="ph-fill ph-first-aid-kit"></i>
+                                <span>Salud</span>
+                                <small id="txtSalud">--</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="info-tip">
+                        <i class="ph-fill ph-cursor-click"></i>
+                        <span>Haz clic en cualquier punto del mapa para calcular distancias en tiempo real a estaciones de emergencia y salud.</span>
+                    </div>
+                </section>
+
+                <!-- PESTAÑA 2: CONTROL DE CAPAS Y MAPA BASE -->
+                <section id="tab-capas" class="tab-panel">
+                    <div class="card">
+                        <span class="section-label">Mapa Base</span>
+                        <div class="basemap-selector">
+                            <label class="radio-card">
+                                <input type="radio" name="basemap" value="claro" checked>
+                                <span><i class="ph ph-map-trifold"></i> Carto Claro</span>
+                            </label>
+                            <label class="radio-card">
+                                <input type="radio" name="basemap" value="esri">
+                                <span><i class="ph ph-compass"></i> Esri Calles</span>
+                            </label>
+                            <label class="radio-card">
+                                <input type="radio" name="basemap" value="satelite">
+                                <span><i class="ph ph-planet"></i> Satélite</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <span class="section-label">Capas Temáticas (PostGIS)</span>
+                        <div id="contenedorCapas" class="layers-list">
+                            <!-- Se llena dinámicamente desde app.js -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- PESTAÑA 3: FORMULARIO DE REPORTES CIUDADANOS -->
+                <section id="tab-reportes" class="tab-panel">
+                    <div class="card">
+                        <span class="section-label">Nuevo Reporte Ciudadano</span>
+                        <form id="formReporte" class="modern-form">
+                            <div class="form-group">
+                                <label for="repNombre">Nombre del solicitante</label>
+                                <input type="text" id="repNombre" placeholder="Ej. Juan Pérez" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="repTipo">Tipo de requerimiento</label>
+                                <select id="repTipo" required>
+                                    <option value="">Selecciona una categoría...</option>
+                                    <option value="Agua Potable">Agua Potable</option>
+                                    <option value="Alcantarillado">Alcantarillado</option>
+                                    <option value="Emergencia / Bomberos">Emergencia / Bomberos</option>
+                                    <option value="Seguridad / Policía">Seguridad / Policía</option>
+                                    <option value="Salud">Salud</option>
+                                    <option value="Otro">Otro</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="repComentarios">Descripción / Comentarios</label>
+                                <textarea id="repComentarios" rows="2" placeholder="Describe brevemente el incidente..."></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <div class="label-row">
+                                    <label>Coordenadas (WGS84)</label>
+                                    <button type="button" id="btnGPS" class="btn-gps">
+                                        <i class="ph-fill ph-crosshair"></i> Usar mi GPS
+                                    </button>
+                                </div>
+                                <div class="coords-grid">
+                                    <input type="number" step="any" id="repLat" placeholder="Latitud" required>
+                                    <input type="number" step="any" id="repLong" placeholder="Longitud" required>
+                                </div>
+                                <small class="helper-text">Tip: También puedes hacer clic directo en el mapa para capturar el punto.</small>
+                            </div>
+
+                            <button type="submit" id="btnEnviarReporte" class="btn-primary">
+                                <i class="ph-bold ph-paper-plane-tilt"></i> Enviar Reporte al Mapa
+                            </button>
+                        </form>
+                    </div>
+                </section>
+
+            </div>
+        </aside>
+
+        <!-- Contenedor Principal del Mapa -->
+        <main class="map-container">
+            <button id="btnAbrirSidebar" class="btn-floating-menu" title="Abrir panel">
+                <i class="ph-bold ph-list"></i> Panel SIG
+            </button>
+            <div id="mapa"></div>
+        </main>
+    </div>
+
+    <!-- Lógica de la aplicación -->
+    <script src="app.js"></script>
+</body>
+</html>
